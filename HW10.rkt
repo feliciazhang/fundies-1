@@ -270,11 +270,15 @@
 ;; render: World -> Image
 ;; Renders the words in the world state on the board
 ;; and shows the final score
-#;(define (render w)
+(define (render w)
   (overlay (draw-falling-words (world-lofw w))
            (draw-stuck-words (world-losw w))
-           (draw-player-typing (world-typed-word w)))
-           (score-template (world-score w)))
+           (draw-player-typing (world-typed-word w))))
+
+ (check-expect (render (make-world lofw1 losw1 tw1 15)) (overlay (draw-falling-words lofw1)
+                                                                 (draw-stuck-words losw1)
+                                                                 (draw-player-typing tw1)))
+    
 
 
 ;; draw-falling-words: LoFW -> Image
@@ -493,4 +497,4 @@
    (on-tick next-world frequency)
    (to-draw render)
    (on-key type)
-   (stop-when end-game render)))
+   (stop-when end-game draw-score)))
