@@ -1,13 +1,9 @@
 ;; The first three lines of this file were inserted by DrRacket. They record metadata
 ;; about the language level of this file in a form that our tools can easily process.
 #reader(lib "htdp-beginner-reader.ss" "lang")((modname HW10) (read-case-sensitive #t) (teachpacks ()) (htdp-settings #(#t constructor repeating-decimal #f #t none #f () #f)))
-;; The first three lines of this file were inserted by DrRacket. They record metadata
-;; about the language level of this file in a form that our tools can easily process.
-;(lib "htdp-beginner-reader.ss" "lang")((modname HW10) (read-case-sensitive #t) (teachpacks ()) (htdp-settings #(#t constructor repeating-decimal #f #t none #f () #f)))
 (require 2htdp/image)
 (require 2htdp/universe)
 
-;; string alphabetic...something
 ;;; Felicia Zhang and Sarah Coffen
 ;;; Assignment 10 -> Typaholic!
 
@@ -36,17 +32,17 @@
 ; - Stuck-Word
 ; - Typed-Word
 
-;; a Falling-Word is a (make-falling-word Posn String)
-(define-struct falling-word [location text])
-(define shiny (make-falling-word (make-posn 4 16) "shiny"))
+;; a Falling-Word is a (make-falling-word String Posn)
+(define-struct falling-word [text location])
+(define shiny (make-falling-word "shiny" (make-posn 4 16)))
 
 ;; a Stuck-Word is a (make-stuck-word Posn String)
 (define-struct stuck-word [location text])
 (define coconut (make-stuck-word (make-posn 20 40) "coconut"))
 
 ;; an LoFW is a List of Falling-Words
-(define lofw1(list (make-falling-word (make-posn 4 16) "island")
-                   (make-falling-word (make-posn 6 5) "boat")))
+(define lofw1(list (make-falling-word "island" (make-posn 4 16) )
+                   (make-falling-word "boat" (make-posn 6 5))))
 
 ;; an LoSW is a List of Stuck-Words
 (define losw1 (list (make-stuck-word (make-posn 22 39) "chicken")
@@ -97,9 +93,8 @@
 
 #;
 (define (falling-word-template fw)
-  ...(posn-template (falling-word-location fw))...
   ...(falling-word-text fw)...
-  ...(falling-word-speed fw)...)
+  ...(posn-template (falling-word-location fw))...)
 
 #;
 (define (stuck-word-template sw)
@@ -131,13 +126,15 @@
               (append (falling-to-stuck w) (world-losw w))
               (world-typed-word w)
 
-              ...(score-template (world-score w))...)
+              ...(score-template (world-score w))...))
 
 ;; new-falling-word: Vocabulary -> String
 ;; Retrieves a word from the list of vocabulary to fall
 (define (new-falling-word vocabulary)
   (cond [(= (random (length vocabulary)) 1) (first vocabulary)]
-        [else (new-falling-word (rest vocabulary))])) 
+        [else (new-falling-word (rest vocabulary))]))
+
+(check-expect (string? (new-falling-word vocabulary)) #true)
 
 ;; maybe-new-word?: World -> World
 ;; New word generated every other tick
@@ -152,8 +149,8 @@
               (words-are-falling (rest lofw)))]))
 
 (check-expect (words-are-falling lofw1)
-              (list (make-falling-word (make-posn 4 17) "island")
-                    (make-falling-word (make-posn 6 6) "boat")))
+              (list (make-falling-word "island" (make-posn 4 17))
+                    (make-falling-word "boat" (make-posn 6 6))))
 
 ;; still-falling: World -> LoFW
 ;; Keeps a falling word a falling word if it is not touching the bottom or another word
@@ -165,7 +162,7 @@
             (still-falling (rest (world-lofw w))))
       (still-falling (rest (world-lofw w)))))
 
-;(check-expect (falling-to-stuck 
+
 
 ;; falling-to-stuck: World -> LoSW
 ;; Turns a falling word to a stuck word when it touches the bottom or another word
@@ -182,18 +179,18 @@
 (define (touch-bottom? fw)
   (>= (posn-y (falling-word-location (move-down fw))) GRID-HEIGHT))
 
-(check-expect (touch-bottom? (make-falling-word (make-posn 4 40) "water")) #true)
-(check-expect (touch-bottom? (make-falling-word (make-posn 4 4) "dreaming")) #false)
+(check-expect (touch-bottom? (make-falling-word "water" (make-posn 4 40))) #true)
+(check-expect (touch-bottom? (make-falling-word "dreaming" (make-posn 4 4))) #false)
 
 ;; move-down: Falling-Word -> Falling-Word
 ;; Returns the falling word as down 1 cell
 (define (move-down fw)
-  (make-falling-word (make-posn (posn-x (falling-word-location fw))
-                                (+ SPEED (posn-y (falling-word-location fw))))
-                     (falling-word-text fw)))
+  (make-falling-word (falling-word-text fw)
+                     (make-posn (posn-x (falling-word-location fw))
+                                (+ SPEED (posn-y (falling-word-location fw))))))
 
-(check-expect (move-down (make-falling-word (make-posn 4 40) "water"))
-              (make-falling-word (make-posn 4 41) "water"))
+(check-expect (move-down (make-falling-word "water" (make-posn 4 40)))
+              (make-falling-word "water" (make-posn 4 41)))
         
 #|
 ;; posn-to-grid: Posn -> Posn
@@ -327,25 +324,37 @@
                                 (world-typed-word w))
               (world-losw w)
               empty
-              (score-template (world-score w))))
+              (world-score w)))
+
+;(check-expect (
 
 ;; match-and-remove: LoFW Typed-Word -> LoFW
 ;; removes words that match those in the LoFW
 (define (match-and-remove lofw tw)
-  (cond [(empty? lofw) empty]
-        [(not (word-match (first lofw)
-                          (letters-to-word tw)))
+  (cond [(or (empty? lofw) (empty? tw)) empty]
+        [(not (word-match? (falling-word-text (first lofw))
+                           (letters-to-word tw)))
          (cons (first lofw)
                (match-and-remove (rest lofw) tw))]
-        [(word-match (first lofw)
-                     (letters-to-word tw))
-         (match-and-remove (rest lofw) tw)]))
+        [else (match-and-remove (rest lofw) tw)]))
+
+(check-expect (match-and-remove empty tw1) empty)
+(check-expect (match-and-remove lofw1 empty) empty)
+(check-expect (match-and-remove lofw1 (list (make-typed-letter (make-posn 10 10) "b")
+                                            (make-typed-letter (make-posn 10 10) "o")
+                                            (make-typed-letter (make-posn 10 10) "a")
+                                            (make-typed-letter (make-posn 10 10) "t")))
+              (list (make-falling-word "island" (make-posn 4 16) )))
+(check-expect (match-and-remove lofw1 tw1) lofw1)
     
 ;; word-match?: String String -> Boolean
 ;; Does the typed word match one of the falling words?
-
-(check-expect (word-match "sea" "sea") #true)
-(check-expect (word-match "sea" "ocean") #false)
+(define (word-match? s1 s2)
+  (string=? s1 s2))
+    
+(check-expect (word-match? "sea" "sea") #true)
+(check-expect (word-match? "sea" "ocean") #false)
+    
 #|
 (define (word-match? tw lofw)
   (cond [(empty? tw) #false]
@@ -422,8 +431,7 @@
 
 
 ;; main: Number -> Number
-#;
-(define (main frequency)
+#;(define (main frequency)
   (big-bang INITIAL
    (on-tick next-world frequency)
    (to-draw render)
