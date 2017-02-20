@@ -25,7 +25,6 @@
 
 ;; a World is a (make-world LoFW LoSW Typed-word Score)
 (define-struct world [lofw losw typed-word score])
-(define INITIAL (make-world empty empty empty 0))
 
 ;; A Word is one of:
 ; - Falling-Word
@@ -71,7 +70,8 @@
   ...(lofw-template (world-lofw w))...
   ...(losw-template (world-losw w))...
   ...(typed-word-template (world-typed-word w))...
-  ...(score-template (world-score w))...)
+  ...(score-template (world-score w))...
+  ...(world-frequency w)...)
 
 #;
 (define (lofw-template lofw)
@@ -121,7 +121,7 @@
 
 ;; next-world: World -> World
 ;; Changes the world state on every tick
-#;(define (next-world w)
+(define (next-world w)
   (make-world (if (maybe-new-word? w)
                   (add-falling-word
                    (words-are-falling
@@ -130,7 +130,7 @@
                    (still-falling w)))
               (append (falling-to-stuck w) (world-losw w))
               (world-typed-word w)
-              ...(score-template (world-score w))...))
+              (add1 (world-score w))))
 
 ;; add-falling-word: LoFW -> LoFW
 ;; adds a new falling word to the list of falling words
@@ -142,9 +142,11 @@
 ;; creates a new falling word
 (define (get-new-falling-word s)
   (make-falling-word (get-word-by-index
+                      vocabulary
                       (get-index-of-word vocabulary s))
                      (new-word-location
                       (get-word-by-index
+                       vocabulary
                        (get-index-of-word vocabulary s)))))
 
 ;; get-index-of-word: LoS String -> Number
@@ -475,13 +477,19 @@
 
 
 ;; scoring: World -> World
-;; Calculates player's score also wtf
-
+;; Calculates player's score and output a world with that new score
+(define (scoring w)
+  (make-world (world-lofw w)
+              (world-losw w)
+              (world-typed-word w)
+              (* (world-score w)
+                 (/ 1 (world-frequency w)))
+              (world-frequency w)))
 
 
 ;; main: Number -> Number
 #;(define (main frequency)
-  (big-bang INITIAL
+  (big-bang (make-world empty empty empty 0 frequency)
    (on-tick next-world frequency)
    (to-draw render)
    (on-key type)
