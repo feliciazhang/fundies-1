@@ -135,10 +135,9 @@
   (cond [(= (random (length vocabulary)) 1) (first vocabulary)]
         [else (new-falling-word (rest vocabulary))])) 
 
-
-;; maybe-new-word?: World -> Boolean
+;; maybe-new-word?: World -> World
 ;; New word generated every other tick
-
+;(define (maybe-new-word?
 
 
 ;; words-are-falling: LoFW -> LoFW
@@ -230,7 +229,11 @@
 ;; render: World -> Image
 ;; Renders the words in the world state on the board
 ;; and shows the final score
-
+#;(define (render w)
+  (overlay (draw-falling-words (world-lofw w))
+           (draw-stuck-words (world-losw w))
+           (draw-player-typing (world-typed-word w)))
+           (score-template (world-score w)))
 
 
 ;; draw-falling-words: LoFW -> Image
@@ -298,12 +301,37 @@
 ;; User inputs letters with the alphabet keyboard to type a word
 ;; and submits them to remove matching falling words when Enter is pressed
 ;; and backspace can be used to delete letters typed
+(define (type w event)
+  (cond [(and (string-alphabetic? event) (= (string-length event) 1))
+         (make-world (world-lofw w)
+                     (world-losw w)
+                     (add-typing (world-typed-word w) event)
+                     (world-score w))]
+        [(string=? event "\b")
+         (make-world (world-lofw w)
+                     (world-losw w)
+                     (delete (world-typed-word w))
+                     (world-score w))]
+        [(string=? event "\r") (submit w)]))
+
 
 ;; submit: World -> World
 ;; Removes falling words from the screen that match the word that the player types
+(define (submit w)
+  (if (string=? (letters-to-world (world-typed-word w))
+                (falling-word-text (first world-lofw)))
+      (make-world
+      (submit (
+      
 
-;; word-match?: Typed-Word LoFW -> Boolean
+;; word-match?: String String -> Boolean
 ;; Does the typed word match one of the falling words?
+(define (word-match s1 s2)
+  (if (string=? s1 s2) #true #false))
+
+(check-expect (word-match "sea" "sea") #true)
+(check-expect (word-match "sea" "ocean") #false)
+#|
 (define (word-match? tw lofw)
   (cond [(empty? tw) #false]
         [(empty? lofw) #false]
@@ -313,7 +341,7 @@
 (check-expect (word-match? tw1 empty) #false)
 (check-expect (word-match? empty lofw1) #false)
 (check-expect (word-match? tw1 lofw1) #false)
-(check-expect (word-match? tw1 (list (make-falling-word (make-posn 4 16) "sea"))) #true)
+(check-expect (word-match? tw1 (list (make-falling-word (make-posn 4 16) "sea"))) #true)|#
 
 ;; letters-to-word: Typed-Word -> String
 ;; Converts list of strings that user types into a single string
