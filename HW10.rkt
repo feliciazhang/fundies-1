@@ -124,18 +124,16 @@
 ;; next-world: World -> World
 ;; Changes the world state on every tick
 #;(define (next-world w)
-  (make-world (lofw-template (world-lofw w))...
-  ...(losw-template (world-losw w))...
-  ...(typed-word-template (world-typed-word w))...
-  ...(score-template (world-score w))...))
+  (make-world (words-are-falling (still-falling w))
+              (append (falling-to-stuck w) (world-losw w)))
+              (typed-word-template (world-typed-word w))
+              ...(score-template (world-score w))...))
 
 ;; new-falling-word: Vocabulary -> String
 ;; Retrieves a word from the list of vocabulary to fall
 (define (new-falling-word vocabulary)
   (cond [(= (random (length vocabulary)) 1) (first vocabulary)]
         [else (new-falling-word (rest vocabulary))])) 
-
-;(check-expect (
 
 ;; maybe-new-word?: World -> World
 ;; New word generated every other tick
@@ -153,16 +151,26 @@
               (list (make-falling-word (make-posn 4 17) "island")
                     (make-falling-word (make-posn 6 6) "boat")))
 
-;; falling-to-stuck: World -> World
-;; Turns a falling word to a stuck word when it touches the bottom or another word
-#;(define (falling-to-stuck w)
-  (if (or (touch-bottom? (first (world-lofw w)))
-          (touching-stuck-word? (first (world-lofw w))))
+;; still-falling: World -> LoFW
+;; Keeps a falling word a falling word if it is not touching the bottom or another word
+(define (still-falling w)
+  (if (not(or (touch-bottom? (first (world-lofw w)))
+          (touching-stuck-word? (first (world-lofw w)))))
       (cons (first (world-lofw w))
-            (world-losw w))
-      (falling-to-stuck (rest (world-lofw w)))))
+            (still-falling (rest (world-lofw w))))
+      (still-falling (rest (world-lofw w)))))
 
 ;(check-expect (falling-to-stuck 
+
+;; falling-to-stuck: World -> LoSW
+;; Turns a falling word to a stuck word when it touches the bottom or another word
+(define (falling-to-stuck w)
+  (if (or (touch-bottom? (first (world-lofw w)))
+          (touching-stuck-word? (first (world-lofw w))
+                                (world-losw w)))
+      (cons (first (world-lofw w))
+            (falling-to-stuck (rest (world-lofw w))))
+      (falling-to-stuck (rest (world-lofw w)))))
 
 ;; touch-bottom?: Falling-Word -> Boolean
 ;; Is a falling word touching the bottom of the screen?
@@ -192,9 +200,31 @@
 (check-expect (posn-to-grid (make-posn 45 15)) (make-posn 3 1))
 |#
 
-;; touching-stuck-word?: World -> Boolean
+;; touching-stuck-word?: Falling-Word LoSW -> Boolean
 ;; Is a falling word touching a stuck word?
+(define (touching-stuck-word? fw losw)
+  (cond [(empty? (first (losw))) #true]
+        [(not (and (in-word-width? (text-to-image (first losw)) fw))
+                       (in-word-height? (text-to-image (first losw)) fw))
+             (touching-stuck-word? fw (rest losw))]
+        [else #false]))
 
+;; text-to-image: String -> Image
+;; converts a string of text into an image of text
+(define (text-to-image s)
+  (text s TEXT-SIZE 'blue))
+
+;; in-word-width?: Image Posn -> Boolean
+;; returns true if the posn is within the image's width range
+(define (in-word-width? i p)
+  (and (<= (+ (posn-x p) (/ (image-width i) 2)))
+       (>= (- (posn-x p) (/ (image-width i) 2)))))
+
+;; in-word-height?: Image Posn -> Boolean
+;; returns true if the posn is within the image's height range
+(define (in-word-height? i p)
+  (and (<= (+ (posn-y p) (/ (image-height i) 2)))
+       (>= (- (posn-y p) (/ (image-height i) 2)))))
 
 ;; render: World -> Image
 ;; Renders the words in the world state on the board
@@ -253,7 +283,7 @@
   (overlay (text (string-append "Your score is " (number->string (world-score w))) 60 'blue)
            SCREEN))
 
-;(check-expect 
+;(check-expect )
 
 ;; place-image/grid: Image Number Number Image -> Image
 ;; Places image between grid values
@@ -351,9 +381,9 @@
 
 ;; main: Number -> Number
 #;
-(define (main frequency)
+(define (main tick-speed)
   (big-bang empty
-   (on-tick next-world frequency)
+   (on-tick next-world tick-speed)
    (to-draw render)
    (on-key type)
    (stop-when end-game render)))
