@@ -26,7 +26,7 @@
 
 ;; a World is a (make-world LoFW LoSW Typed-word Score)
 (define-struct world [lofw losw typed-word score])
-(define begin (make-world empty empty empty 0))
+(define INITIAL (make-world empty empty empty 0))
 
 ;; A Word is one of:
 ; - Falling-Word
@@ -127,7 +127,7 @@
   (make-world (words-are-falling (still-falling w))
               (append (falling-to-stuck w) (world-losw w)))
               (typed-word-template (world-typed-word w))
-              ...(score-template (world-score w))...))
+              ...(score-template (world-score w))...)
 
 ;; new-falling-word: Vocabulary -> String
 ;; Retrieves a word from the list of vocabulary to fall
@@ -155,7 +155,7 @@
 ;; Keeps a falling word a falling word if it is not touching the bottom or another word
 (define (still-falling w)
   (if (not(or (touch-bottom? (first (world-lofw w)))
-          (touching-stuck-word? (first (world-lofw w)))))
+          (touching-stuck-word? (first (world-lofw w)) (world-losw w))))
       (cons (first (world-lofw w))
             (still-falling (rest (world-lofw w))))
       (still-falling (rest (world-lofw w)))))
@@ -196,16 +196,15 @@
 (define (posn-to-grid p)
   (make-posn (/ (posn-x p) CELL-WIDTH)
              (/ (posn-y p) CELL-HEIGHT)))
-
 (check-expect (posn-to-grid (make-posn 45 15)) (make-posn 3 1))
 |#
 
 ;; touching-stuck-word?: Falling-Word LoSW -> Boolean
 ;; Is a falling word touching a stuck word?
 (define (touching-stuck-word? fw losw)
-  (cond [(empty? (first (losw))) #true]
-        [(not (and (in-word-width? (text-to-image (first losw)) fw))
-                       (in-word-height? (text-to-image (first losw)) fw))
+  (cond [(empty? (first losw)) #true]
+        [(not (and (in-word-width? (text-to-image (first losw)) fw)
+                   (in-word-height? (text-to-image (first losw)) fw)))
              (touching-stuck-word? fw (rest losw))]
         [else #false]))
 
@@ -301,7 +300,7 @@
 ;; User inputs letters with the alphabet keyboard to type a word
 ;; and submits them to remove matching falling words when Enter is pressed
 ;; and backspace can be used to delete letters typed
-(define (type w event)
+#;(define (type w event)
   (cond [(and (string-alphabetic? event) (= (string-length event) 1))
          (make-world (world-lofw w)
                      (world-losw w)
@@ -312,16 +311,17 @@
                      (world-losw w)
                      (delete (world-typed-word w))
                      (world-score w))]
-        [(string=? event "\r") (submit w)]))
+        [(string=? event "\r") (submit w)]
+        [else w]))
 
 
 ;; submit: World -> World
 ;; Removes falling words from the screen that match the word that the player types
-(define (submit w)
+#;(define (submit w)
   (if (string=? (letters-to-world (world-typed-word w))
                 (falling-word-text (first world-lofw)))
       (make-world
-      (submit (
+      (submit ()))))
       
 
 ;; word-match?: String String -> Boolean
@@ -337,7 +337,6 @@
         [(empty? lofw) #false]
         [(string=? (letters-to-word tw) (falling-word-text (first lofw))) #true]
         [else (word-match? tw (rest lofw))]))
-
 (check-expect (word-match? tw1 empty) #false)
 (check-expect (word-match? empty lofw1) #false)
 (check-expect (word-match? tw1 lofw1) #false)
@@ -351,6 +350,7 @@
                              (letters-to-word (rest tw)))]))
 
 (check-expect (letters-to-word tw1) "sea")
+(check-expect (letters-to-word empty) "")
 
 ;; delete: Typed-Word -> Typed-Word
 ;; Removes the last letter that the player typed
@@ -372,7 +372,31 @@
               (list sea1 sea2 sea3 (make-typed-letter (make-posn 300 615) "s")))
 
 ;; end-game: World -> Boolean
-;; Ends the game when 
+;; Ends the game when a stuck word reaches the top of the screen
+(define (end-game w)
+  (cond [(stuck-at-top? (world-losw w)) #true]
+        [else #false]))
+
+(check-expect (end-game (make-world lofw1 losw1 tw1 60)) #false)
+(check-expect (end-game (make-world lofw1
+                                    (list (make-stuck-word (make-posn 22 39) "chicken")
+                                          (make-stuck-word (make-posn 22 1) "heihei"))
+                                    tw1 33))
+              #true)
+
+;; stuck-at-top? LoSW -> Boolean
+;; Is any stuck word at the top of the screen?
+(define (stuck-at-top? losw)
+  (cond [(empty? losw) #false]
+        [(= (posn-y (stuck-word-location (first losw))) 1) #true]
+        [else (stuck-at-top? (rest losw))]))
+
+(check-expect (stuck-at-top? empty) #false)
+(check-expect (stuck-at-top? losw1) #false)
+(check-expect (stuck-at-top? (list (make-stuck-word (make-posn 22 39) "chicken")
+                                   (make-stuck-word (make-posn 22 1) "heihei")))
+              #true)
+
 
 ;; scoring: World -> World
 ;; Calculates player's score also wtf
@@ -381,9 +405,9 @@
 
 ;; main: Number -> Number
 #;
-(define (main tick-speed)
-  (big-bang empty
-   (on-tick next-world tick-speed)
+(define (main frequency)
+  (big-bang INITIAL
+   (on-tick next-world frequency)
    (to-draw render)
    (on-key type)
    (stop-when end-game render)))
