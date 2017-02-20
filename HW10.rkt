@@ -25,6 +25,7 @@
 
 ;; a World is a (make-world LoFW LoSW Typed-word Score)
 (define-struct world [lofw losw typed-word score])
+(define INITIAL (make-world empty empty empty 0))
 
 ;; A Word is one of:
 ; - Falling-Word
@@ -70,8 +71,7 @@
   ...(lofw-template (world-lofw w))...
   ...(losw-template (world-losw w))...
   ...(typed-word-template (world-typed-word w))...
-  ...(score-template (world-score w))...
-  ...(world-frequency w)...)
+  ...(score-template (world-score w))...)
 
 #;
 (define (lofw-template lofw)
@@ -121,7 +121,7 @@
 
 ;; next-world: World -> World
 ;; Changes the world state on every tick
-(define (next-world w)
+#;(define (next-world w)
   (make-world (if (maybe-new-word? w)
                   (add-falling-word
                    (words-are-falling
@@ -130,13 +130,15 @@
                    (still-falling w)))
               (append (falling-to-stuck w) (world-losw w))
               (world-typed-word w)
-              (add1 (world-score w))))
+              ...(score-template (world-score w))...))
 
 ;; add-falling-word: LoFW -> LoFW
 ;; adds a new falling word to the list of falling words
 (define (add-falling-word lofw)
   (cons (get-new-falling-word (new-falling-word vocabulary))
         lofw))
+
+ 
 
 ;; get-new-falling-word String -> Falling-Word
 ;; creates a new falling word
@@ -270,11 +272,14 @@
 ;; render: World -> Image
 ;; Renders the words in the world state on the board
 ;; and shows the final score
-#;(define (render w)
+(define (render w)
   (overlay (draw-falling-words (world-lofw w))
            (draw-stuck-words (world-losw w))
-           (draw-player-typing (world-typed-word w)))
-           (score-template (world-score w)))
+           (draw-player-typing (world-typed-word w))))
+
+(check-expect (render (make-world lofw1 losw1 tw1 15)) (overlay (draw-falling-words lofw1)
+                                                                (draw-stuck-words losw1)
+                                                                (draw-player-typing tw1)))
 
 
 ;; draw-falling-words: LoFW -> Image
@@ -455,7 +460,7 @@
   (cond [(stuck-at-top? (world-losw w)) #true]
         [else #false]))
 
-(check-expect (end-game (make-world lofw1 losw1 tw1 60)) #false)
+(check-expect (end-game (make-world lofw1 losw1 tw1 60 )) #false)
 (check-expect (end-game (make-world lofw1
                                     (list (make-stuck-word (make-posn 22 39) "chicken")
                                           (make-stuck-word (make-posn 22 1) "heihei"))
@@ -477,14 +482,8 @@
 
 
 ;; scoring: World -> World
-;; Calculates player's score and output a world with that new score
-(define (scoring w)
-  (make-world (world-lofw w)
-              (world-losw w)
-              (world-typed-word w)
-              (* (world-score w)
-                 (/ 1 (world-frequency w)))
-              (world-frequency w)))
+;; Calculates player's score also wtf
+
 
 
 ;; main: Number -> Number
@@ -493,4 +492,4 @@
    (on-tick next-world frequency)
    (to-draw render)
    (on-key type)
-   (stop-when end-game render)))
+   (stop-when end-game draw-score)))
