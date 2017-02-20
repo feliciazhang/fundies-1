@@ -127,7 +127,7 @@
   (make-world (words-are-falling (still-falling w))
               (append (falling-to-stuck w) (world-losw w)))
               (typed-word-template (world-typed-word w))
-              ...(score-template (world-score w))...)
+              ...(score-template (world-score w))...))
 
 ;; new-falling-word: Vocabulary -> String
 ;; Retrieves a word from the list of vocabulary to fall
@@ -311,8 +311,7 @@
                      (world-losw w)
                      (delete (world-typed-word w))
                      (world-score w))]
-        [(string=? event "\r") (submit w)]
-        [else w]))
+        [(string=? event "\r") (submit w)]))
 
 
 ;; submit: World -> World
