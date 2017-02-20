@@ -1,6 +1,9 @@
 ;; The first three lines of this file were inserted by DrRacket. They record metadata
 ;; about the language level of this file in a form that our tools can easily process.
 #reader(lib "htdp-beginner-reader.ss" "lang")((modname HW10) (read-case-sensitive #t) (teachpacks ()) (htdp-settings #(#t constructor repeating-decimal #f #t none #f () #f)))
+;; The first three lines of this file were inserted by DrRacket. They record metadata
+;; about the language level of this file in a form that our tools can easily process.
+;(lib "htdp-beginner-reader.ss" "lang")((modname HW10) (read-case-sensitive #t) (teachpacks ()) (htdp-settings #(#t constructor repeating-decimal #f #t none #f () #f)))
 (require 2htdp/image)
 (require 2htdp/universe)
 
@@ -125,8 +128,9 @@
 ;; Changes the world state on every tick
 #;(define (next-world w)
   (make-world (words-are-falling (still-falling w))
-              (append (falling-to-stuck w) (world-losw w)))
-              (typed-word-template (world-typed-word w))
+              (append (falling-to-stuck w) (world-losw w))
+              (world-typed-word w)
+
               ...(score-template (world-score w))...)
 
 ;; new-falling-word: Vocabulary -> String
@@ -154,8 +158,9 @@
 ;; still-falling: World -> LoFW
 ;; Keeps a falling word a falling word if it is not touching the bottom or another word
 (define (still-falling w)
-  (if (not(or (touch-bottom? (first (world-lofw w)))
-          (touching-stuck-word? (first (world-lofw w)) (world-losw w))))
+  (if (not (or (touch-bottom? (first (world-lofw w)))
+           (touching-stuck-word? (first (world-lofw w))
+                                (world-losw w))))
       (cons (first (world-lofw w))
             (still-falling (rest (world-lofw w))))
       (still-falling (rest (world-lofw w)))))
@@ -317,17 +322,27 @@
 
 ;; submit: World -> World
 ;; Removes falling words from the screen that match the word that the player types
-#;(define (submit w)
-  (if (string=? (letters-to-world (world-typed-word w))
-                (falling-word-text (first world-lofw)))
-      (make-world
-      (submit ()))))
-      
+(define (submit w)
+  (make-world (match-and-remove (world-lofw w)
+                                (world-typed-word w))
+              (world-losw w)
+              empty
+              (score-template (world-score w))))
 
+;; match-and-remove: LoFW Typed-Word -> LoFW
+;; removes words that match those in the LoFW
+(define (match-and-remove lofw tw)
+  (cond [(empty? lofw) empty]
+        [(not (word-match (first lofw)
+                          (letters-to-word tw)))
+         (cons (first lofw)
+               (match-and-remove (rest lofw) tw))]
+        [(word-match (first lofw)
+                     (letters-to-word tw))
+         (match-and-remove (rest lofw) tw)]))
+    
 ;; word-match?: String String -> Boolean
 ;; Does the typed word match one of the falling words?
-(define (word-match s1 s2)
-  (if (string=? s1 s2) #true #false))
 
 (check-expect (word-match "sea" "sea") #true)
 (check-expect (word-match "sea" "ocean") #false)
@@ -370,6 +385,9 @@
 (check-expect (add-typing empty "s") (list sea1))
 (check-expect (add-typing tw1 "s")
               (list sea1 sea2 sea3 (make-typed-letter (make-posn 300 615) "s")))
+
+;; new-word-location: 
+
 
 ;; end-game: World -> Boolean
 ;; Ends the game when a stuck word reaches the top of the screen
